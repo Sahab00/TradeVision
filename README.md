@@ -1,6 +1,6 @@
 # TradeVision
 
-# MEXC Futures Signal Bot
+## MEXC Futures Signal Bot
 
 A Python bot for **MEXC Futures** that fetches live crypto prices, calculates EMA, RSI, Bollinger Bands,  
 and provides real-time trading signals with suggested entry, stop-loss, and take-profit levels.
@@ -36,5 +36,7 @@ cd TradeVision
 2.Then open your browser and go to: http://localhost:5000
 
 ## Demoo for Using the TradeVision Bot
+<video src="assets/demo.mp4" width="600" controls></video>
+
 
 
