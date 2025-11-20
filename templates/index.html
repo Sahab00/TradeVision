@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Trading Bot Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0d1421;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-blue: #3b82f6;
+            --accent-yellow: #f59e0b;
+            --border-color: #475569;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f1f5f9;
+            --bg-tertiary: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --border-color: #cbd5e1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent-blue);
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+        }
+
+        nav a:hover, nav a.active {
+            color: var(--accent-blue);
+            background: var(--bg-tertiary);
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: none;
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        /* Main Grid */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            padding: 20px 0;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Price Display */
+        .price-display {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .price-change {
+            font-size: 1rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .positive { color: var(--accent-green); background: rgba(16, 185, 129, 0.1); }
+        .negative { color: var(--accent-red); background: rgba(239, 68, 68, 0.1); }
+
+        /* Signal Display */
+        .signal {
+            font-size: 1.5rem;
+            font-weight: bold;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .signal-long { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); border: 2px solid var(--accent-green); }
+        .signal-short { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); border: 2px solid var(--accent-red); }
+        .signal-neutral { background: rgba(245, 158, 11, 0.2); color: var(--accent-yellow); border: 2px solid var(--accent-yellow); }
+
+        /* Indicators Grid */
+        .indicators-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .indicator {
+            text-align: center;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+        }
+
+        .indicator-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-top: 0.5rem;
+        }
+
+        /* Bot Controls */
+        .bot-controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        /* Status Indicator */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-running { background: var(--accent-green); }
+        .status-stopped { background: var(--accent-red); }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* Chart Container */
+        .chart-container {
+            height: 400px;
+            margin-top: 1rem;
+        }
+
+        /* Settings Form */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            transition: border-color 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            nav ul {
+                gap: 1rem;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification-long { background: var(--accent-green); }
+        .notification-short { background: var(--accent-red); }
+        .notification-neutral { background: var(--accent-yellow); }
+        .notification-error { background: var(--accent-red); }
+
+        /* Connection Status */
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            z-index: 1000;
+        }
+
+        .connection-connected { background: var(--accent-green); color: white; }
+        .connection-disconnected { background: var(--accent-red); color: white; }
+        .connection-connecting { background: var(--accent-yellow); color: black; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">⚡ Crypto Bot Pro</div>
+                <nav>
+                    <ul>
+                        <li><a href="#" class="active">Dashboard</a></li>
+                        <li><a href="#">Markets</a></li>
+                        <li><a href="#">Signals</a></li>
+                        <li><a href="#">History</a></li>
+                        <li><a href="#">Settings</a></li>
+                    </ul>
+                </nav>
+                <button class="theme-toggle" onclick="toggleTheme()">🌓 Toggle Theme</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="dashboard">
+            <!-- Left Column -->
+            <div class="main-content">
+                <!-- Price and Chart Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title" id="symbol-title">BTCUSDT Live Chart</h2>
+                        <div class="status-indicator">
+                            <span class="status-dot" id="status-dot"></span>
+                            <span id="status-text">Stopped</span>
+                        </div>
+                    </div>
+                    <div class="price-display" id="live-price">$0.00</div>
+                    <div class="chart-container">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Signals Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Trading Signals</h2>
+                    </div>
+                    <div class="signal signal-neutral" id="signal-display">
+                        NEUTRAL
+                    </div>
+                    <div class="indicators-grid">
+                        <div class="indicator">
+                            <div>EMA20</div>
+                            <div class="indicator-value" id="ema-value">0.00</div>
+                        </div>
+                        <div class="indicator">
+                            <div>RSI</div>
+                            <div class="indicator-value" id="rsi-value">0.00</div>
+                        </div>
+                        <div class="indicator">
+                            <div>BB Upper</div>
+                            <div class="indicator-value" id="bb-up-value">0.00</div>
+                        </div>
+                        <div class="indicator">
+                            <div>BB Lower</div>
+                            <div class="indicator-value" id="bb-low-value">0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="sidebar">
+                <!-- Bot Controls Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Bot Controls</h2>
+                    </div>
+                    <div class="bot-controls">
+                        <button class="btn btn-primary" id="start-btn" onclick="startBot()">Start Bot</button>
+                        <button class="btn btn-danger" id="stop-btn" onclick="stopBot()" disabled>Stop Bot</button>
+                    </div>
+                </div>
+
+                <!-- Trade Info Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Trade Information</h2>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Stop Loss</label>
+                        <div class="form-input" id="stop-loss">0.00</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Take Profit</label>
+                        <div class="form-input" id="take-profit">0.00</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Position Size</label>
+                        <div class="form-input" id="position-size">0.00</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Last Update</label>
+                        <div class="form-input" id="last-update">--:--:--</div>
+                    </div>
+                </div>
+
+                <!-- Settings Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Bot Settings</h2>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Symbol</label>
+                        <input type="text" class="form-input" id="input-symbol" value="BTCUSDT" placeholder="e.g., BTCUSDT">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Timeframe</label>
+                        <select class="form-input" id="input-interval">
+                            <option value="1m">1 Minute</option>
+                            <option value="5m" selected>5 Minutes</option>
+                            <option value="15m">15 Minutes</option>
+                            <option value="1h">1 Hour</option>
+                            <option value="4h">4 Hours</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Balance (USDT)</label>
+                        <input type="number" class="form-input" id="input-balance" value="1000">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Leverage</label>
+                        <input type="number" class="form-input" id="input-leverage" value="50">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification"></div>
+
+    <!-- Connection Status -->
+    <div class="connection-status connection-disconnected" id="connection-status">
+        Disconnected
+    </div>
+
+    <script>
+        // Global variables
+        let chart = null;
+        let priceHistory = [];
+        const MAX_HISTORY_POINTS = 50;
+
+        // Initialize WebSocket connection with reconnection
+        function initializeSocket() {
+            const socket = io({
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                timeout: 20000
+            });
+
+            // WebSocket event handlers with debugging
+            socket.on('connect', function() {
+                console.log('✅ Connected to server via WebSocket');
+                updateConnectionStatus('connected');
+                showNotification('Connected to trading bot', 'neutral');
+            });
+
+            socket.on('disconnect', function(reason) {
+                console.log('❌ Disconnected from server:', reason);
+                updateConnectionStatus('disconnected');
+                if (reason === 'io server disconnect') {
+                    showNotification('Server disconnected', 'error');
+                }
+            });
+
+            socket.on('connect_error', function(error) {
+                console.error('WebSocket connection error:', error);
+                updateConnectionStatus('connecting');
+                showNotification('Connection error - retrying...', 'error');
+            });
+
+            socket.on('reconnect_attempt', function(attempt) {
+                console.log(`🔄 Reconnection attempt ${attempt}`);
+                updateConnectionStatus('connecting');
+            });
+
+            socket.on('reconnect', function(attempt) {
+                console.log('✅ Reconnected to server');
+                updateConnectionStatus('connected');
+                showNotification('Reconnected to trading bot', 'neutral');
+            });
+
+            socket.on('reconnect_failed', function() {
+                console.error('❌ Reconnection failed');
+                updateConnectionStatus('disconnected');
+                showNotification('Failed to reconnect - please refresh page', 'error');
+            });
+
+            socket.on('data_update', function(data) {
+                console.log('📊 Received data update:', data);
+                updateDashboard(data);
+                updateChart(data);
+            });
+
+            return socket;
+        }
+
+        // Initialize WebSocket
+        const socket = initializeSocket();
+
+        // Chart initialization
+        function initializeChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Price',
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        data: []
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute',
+                                displayFormats: {
+                                    minute: 'HH:mm'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: 'Price (USDT)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        // Update chart with new data
+        function updateChart(data) {
+            if (!chart) return;
+
+            const now = new Date();
+            priceHistory.push({
+                x: now,
+                y: data.price
+            });
+
+            // Keep only the last MAX_HISTORY_POINTS
+            if (priceHistory.length > MAX_HISTORY_POINTS) {
+                priceHistory = priceHistory.slice(-MAX_HISTORY_POINTS);
+            }
+
+            chart.data.datasets[0].data = priceHistory;
+            chart.update('none');
+        }
+
+        // Connection status management
+        function updateConnectionStatus(status) {
+            const connectionElement = document.getElementById('connection-status');
+            connectionElement.className = `connection-status connection-${status}`;
+            
+            switch(status) {
+                case 'connected':
+                    connectionElement.textContent = 'Connected';
+                    break;
+                case 'disconnected':
+                    connectionElement.textContent = 'Disconnected';
+                    break;
+                case 'connecting':
+                    connectionElement.textContent = 'Connecting...';
+                    break;
+            }
+        }
+
+        // Theme management
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Bot control functions
+        async function startBot() {
+            const settings = {
+                symbol: document.getElementById('input-symbol').value.trim().toUpperCase(),
+                interval: document.getElementById('input-interval').value,
+                balance: parseFloat(document.getElementById('input-balance').value),
+                leverage: parseFloat(document.getElementById('input-leverage').value)
+            };
+
+            // Validation
+            if (!settings.symbol) {
+                showNotification('Please enter a valid symbol', 'error');
+                return;
+            }
+
+            if (settings.balance <= 0 || settings.leverage <= 0) {
+                showNotification('Balance and leverage must be positive numbers', 'error');
+                return;
+            }
+
+            try {
+                const startBtn = document.getElementById('start-btn');
+                startBtn.disabled = true;
+                startBtn.textContent = 'Starting...';
+
+                const response = await fetch('/api/bot/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(settings)
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'started') {
+                    updateBotStatus(true);
+                    showNotification(`Bot started for ${settings.symbol}`, 'neutral');
+                } else if (data.status === 'already_running') {
+                    showNotification('Bot is already running', 'neutral');
+                } else {
+                    showNotification(data.message || 'Failed to start bot', 'error');
+                }
+            } catch (error) {
+                console.error('Error starting bot:', error);
+                showNotification('Error starting bot - check console', 'error');
+            } finally {
+                const startBtn = document.getElementById('start-btn');
+                startBtn.disabled = false;
+                startBtn.textContent = 'Start Bot';
+            }
+        }
+
+        async function stopBot() {
+            try {
+                const stopBtn = document.getElementById('stop-btn');
+                stopBtn.disabled = true;
+                stopBtn.textContent = 'Stopping...';
+
+                const response = await fetch('/api/bot/stop', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                if (data.status === 'stopped') {
+                    updateBotStatus(false);
+                    showNotification('Bot stopped successfully', 'neutral');
+                }
+            } catch (error) {
+                console.error('Error stopping bot:', error);
+                showNotification('Error stopping bot', 'error');
+            } finally {
+                const stopBtn = document.getElementById('stop-btn');
+                stopBtn.disabled = false;
+                stopBtn.textContent = 'Stop Bot';
+            }
+        }
+
+        function updateBotStatus(running) {
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+
+            if (running) {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                statusDot.className = 'status-dot status-running';
+                statusText.textContent = 'Running';
+            } else {
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                statusDot.className = 'status-dot status-stopped';
+                statusText.textContent = 'Stopped';
+                
+                // Reset chart when bot stops
+                priceHistory = [];
+                if (chart) {
+                    chart.data.datasets[0].data = [];
+                    chart.update();
+                }
+            }
+        }
+
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification show notification-${type}`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 4000);
+        }
+
+        function updateDashboard(data) {
+            try {
+                // Update price
+                document.getElementById('live-price').textContent = `$${data.price.toFixed(2)}`;
+                document.getElementById('symbol-title').textContent = `${data.symbol} Live Chart`;
+                
+                // Update signal
+                const signalDisplay = document.getElementById('signal-display');
+                signalDisplay.textContent = data.signal;
+                signalDisplay.className = `signal signal-${data.signal.toLowerCase()}`;
+                
+                // Update indicators
+                document.getElementById('ema-value').textContent = data.ema20.toFixed(2);
+                document.getElementById('rsi-value').textContent = data.rsi.toFixed(1);
+                document.getElementById('bb-up-value').textContent = data.bb_up.toFixed(2);
+                document.getElementById('bb-low-value').textContent = data.bb_low.toFixed(2);
+                
+                // Update trade info
+                document.getElementById('stop-loss').textContent = data.stop_loss.toFixed(2);
+                document.getElementById('take-profit').textContent = data.take_profit.toFixed(2);
+                document.getElementById('position-size').textContent = data.position_size.toFixed(3);
+                document.getElementById('last-update').textContent = data.timestamp;
+
+                // Show signal notifications
+                if (data.signal === 'LONG' || data.signal === 'SHORT') {
+                    showNotification(`New ${data.signal} signal detected!`, data.signal.toLowerCase());
+                }
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+            }
+        }
+
+        // Load initial bot status
+        async function loadInitialStatus() {
+            try {
+                const response = await fetch('/api/bot/status');
+                const data = await response.json();
+                updateBotStatus(data.status === 'running');
+            } catch (error) {
+                console.error('Error loading bot status:', error);
+            }
+        }
+
+        // Test API connection
+        async function testConnection() {
+            try {
+                const response = await fetch('/api/test');
+                const data = await response.json();
+                console.log('API test:', data);
+            } catch (error) {
+                console.error('API test failed:', error);
+            }
+        }
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load saved theme
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+
+            // Initialize chart
+            initializeChart();
+
+            // Load initial status
+            loadInitialStatus();
+
+            // Test connection
+            testConnection();
+
+            console.log('🚀 Crypto Bot Dashboard initialized');
+        });
+
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                // Page became visible, reload status
+                loadInitialStatus();
+            }
+        });
+    </script>
+</body>
+</html>
