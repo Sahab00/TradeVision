@@ -28,9 +28,10 @@ Supports a wide range of coins such as: BTC_USDT, ETH_USDT, SOL_USDT, XRP_USDT, 
 
 1. Clone the repository:  
 git clone https://github.com/Sahab00/TradeVision.git
+
 cd TradeVision
 
-2. Install required packages
+3. Install required packages
 pip install -r requirements.txt
 
 ## Run the app in the browser
